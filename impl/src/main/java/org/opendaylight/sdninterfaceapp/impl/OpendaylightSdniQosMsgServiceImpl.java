@@ -57,16 +57,16 @@ import org.slf4j.LoggerFactory;
 public class OpendaylightSdniQosMsgServiceImpl implements OpendaylightSdniQosMsgService {
 
 	private static OpendaylightSdniQosMsgServiceImpl serviceObj = null;
-	private final Logger logger = LoggerFactory.getLogger(OpendaylightSdniQosMsgServiceImpl.class);
-	private List<String> sdnControllers = new ArrayList<String>();
-	private InstanceIdentifier<SdnControllers> instanceIdentifier = InstanceIdentifier.builder(SdnControllers.class).build();
-	private DataBroker dataBroker;
+	private final Logger logger = LoggerFactory.getLogger(OpendaylightSdniQosMsgServiceImpl.class);//用来记录日志 目前还不清楚是否有输出的功能
+	private List<String> sdnControllers = new ArrayList<String>(); //用来记录ip地址
+	private InstanceIdentifier<SdnControllers> instanceIdentifier = InstanceIdentifier.builder(SdnControllers.class).build(); //注意此处 instanceIdentifier 是 SdnControllers.class 后面有写操作
+	private DataBroker dataBroker;//主要作用就是使用其中的方法来从datastore中获取需要的数据
 
 	private OpendaylightSdniQosMsgServiceImpl(){
 		//getAllNodeConnectorsStatistics();
 	}
 
-	public static OpendaylightSdniQosMsgServiceImpl getInstance()
+	public static OpendaylightSdniQosMsgServiceImpl getInstance()//没有则实例化类的对象，有则获取对象，确定该类仅存在一个静态的对象
 	{
 		if ( serviceObj == null )
 		{
@@ -79,37 +79,37 @@ public class OpendaylightSdniQosMsgServiceImpl implements OpendaylightSdniQosMsg
 	@Override
 	public Future<RpcResult<org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.
 	sdninterfaceapp.qos.msg.rev151006.GetAllNodeConnectorsStatisticsOutput>> 
-	getAllNodeConnectorsStatistics() {
+	getAllNodeConnectorsStatistics() {//获取本机控制器控制下的网络的所有节点的信息
 		logger.info("SdniQoSReader - getNodeConnectorStatistics :  Start");
 		String controller = null;
 
 		org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.sdninterfaceapp.qos.msg.rev151006.GetAllNodeConnectorsStatisticsOutput output = null;
-		RpcResultBuilder rpcBuilder = null;
+		RpcResultBuilder rpcBuilder = null;//最后返回的东西
 
 		org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.sdninterfaceapp.qos.msg.rev151006
 		.GetAllNodeConnectorsStatisticsOutputBuilder builder = null;
 		NodeList nodeList = null;
-		List<NodeList> outputNodesList = new ArrayList<NodeList>();
+		List<NodeList> outputNodesList = new ArrayList<NodeList>(); //NodeList是节点对象，存放的是节点的信息
 		try {
 
-			controller = findIpAddress();
-			final ReadOnlyTransaction readTx = dataBroker.newReadOnlyTransaction();
+			controller = findIpAddress(); //本机ip地址
+			final ReadOnlyTransaction readTx = dataBroker.newReadOnlyTransaction(); //异步读对象
 
 			InstanceIdentifier<Nodes> NODES_IDENTIFIER = InstanceIdentifier.create(Nodes.class);
-			Nodes nodes = getDataObject(readTx, NODES_IDENTIFIER);
+			Nodes nodes = getDataObject(readTx, NODES_IDENTIFIER);//注意此处,nodes得到的是所有的节点，与上一步联系起来看就是，初始化一个读取事件，并读取datastore中有关nodes的数据
 			if(nodes!=null) {
 				List<Node> nodesList = nodes.getNode();
 				if(nodesList!=null&& !nodesList.isEmpty()) {
 					for ( Node node : nodesList )
 					{
 						try {
-							nodeList = getAllPortStats(node, readTx);
+							nodeList = getAllPortStats(node, readTx);//得到当前节点的所有的端口信息
 						} catch (ReadFailedException | ExecutionException
 								| InterruptedException e) {
 							logger.error("Exception in getAllNodeConnectorsStatistics : "+e.getMessage());
 						}
 
-						outputNodesList.add(nodeList);
+						outputNodesList.add(nodeList);//将得到的nodeList加入到输出中
 					}
 
 				}
@@ -129,7 +129,7 @@ public class OpendaylightSdniQosMsgServiceImpl implements OpendaylightSdniQosMsg
 		builder.setControllerIp(controller);
 
 		if ( !sdnControllers.contains(controller) ) {
-			sdnControllers.add(controller);
+			sdnControllers.add(controller);//如果当前sdnControllers中没有包含controller ip则添加进去
 		}
 
 		SdnControllersBuilder scb = new SdnControllersBuilder();
@@ -142,22 +142,22 @@ public class OpendaylightSdniQosMsgServiceImpl implements OpendaylightSdniQosMsg
 
 
 
-		writeTx.merge(LogicalDatastoreType.OPERATIONAL, instanceIdentifier, scb.build());
-		 writeTx.commit();
+		writeTx.merge(LogicalDatastoreType.OPERATIONAL, instanceIdentifier, scb.build()); // instanceIdentifier 是 SdnControllers.class 此处是向datastore进行写操作
+		 writeTx.commit();//提交
 		
-		output = builder.build();
+		output = builder.build();//builder包含所有上面经过处理后的数据
 
-		rpcBuilder = RpcResultBuilder.success(output);
+		rpcBuilder = RpcResultBuilder.success(output);//rpcBuilder目前还不知道功能
 		return rpcBuilder.buildFuture();
 	}
 
 
 
 	private <T extends DataObject> T getDataObject(final ReadTransaction readOnlyTransaction,
-			final InstanceIdentifier<T> identifier) {
+			final InstanceIdentifier<T> identifier) { //从数据库中得到对应类型的数据
 		Optional<T> optionalData = null;
 		try {
-			optionalData = readOnlyTransaction.read(LogicalDatastoreType.OPERATIONAL, identifier).get();
+			optionalData = readOnlyTransaction.read(LogicalDatastoreType.OPERATIONAL, identifier).get();// 读取identifier对应的数据，LogicalDatastoreType.OPERATIONAL好像是默认参数，也存在与writer中
 			if (optionalData.isPresent()) {
 				return optionalData.get();
 			}
@@ -178,7 +178,7 @@ public class OpendaylightSdniQosMsgServiceImpl implements OpendaylightSdniQosMsg
 		logger.info("In getAllPortStats nodekey : " + node.getId().getValue() + " : " + node.getKey());
 
 
-		List<NodeConnector> ncList = node.getNodeConnector();
+		List<NodeConnector> ncList = node.getNodeConnector(); //
 
 		if ( ncList == null || ncList.isEmpty() )
 		{
@@ -194,8 +194,8 @@ public class OpendaylightSdniQosMsgServiceImpl implements OpendaylightSdniQosMsg
 		      final InstanceIdentifier<FlowCapableNodeConnector> connectorRef = InstanceIdentifier
 		    	        .create(Nodes.class).child(Node.class, nodeKey)
 		    	        .child(NodeConnector.class, nc.getKey())
-		    	        .augmentation(FlowCapableNodeConnector.class);
-		      FlowCapableNodeConnector nodeConnector = getDataObject(readTx, connectorRef);
+		    	        .augmentation(FlowCapableNodeConnector.class);//数据所在位置
+		      FlowCapableNodeConnector nodeConnector = getDataObject(readTx, connectorRef);//得到对应的数据
 		      logger.info("In getAllPortStats nodeConnector.getName() :{} ", nodeConnector.getName());
 		      final InstanceIdentifier<NodeConnector> nodeConnectorII = InstanceIdentifier.create(Nodes.class)
 		    		  .child(Node.class, nodeKey).child(NodeConnector.class, nc.getKey());
@@ -206,6 +206,7 @@ public class OpendaylightSdniQosMsgServiceImpl implements OpendaylightSdniQosMsg
 			if(flowCapableNodeConnectorStatisticsDataOptional.isPresent())
 			{
 				flow = flowCapableNodeConnectorStatisticsDataOptional.get().getFlowCapableNodeConnectorStatistics();
+				//下面的内容参见NetworkCapabilitiesQOS部分的代码
 
 				List<PortParams> portparams = new ArrayList<PortParams>();
 				PortListBuilder portListBuilder = new PortListBuilder();
@@ -252,10 +253,10 @@ public class OpendaylightSdniQosMsgServiceImpl implements OpendaylightSdniQosMsg
 		return nodeListBuilder.build();
 	}
 
-	private String findIpAddress() {
+	private String findIpAddress() {// get this machine's ip
 		Enumeration e = null;
 		try {
-			e = NetworkInterface.getNetworkInterfaces();
+			e = NetworkInterface.getNetworkInterfaces();//Returns all the interfaces on this machine.
 		} catch (SocketException e1) {
 			logger.error("Failed to get list of interfaces", e1);
 			return null;
@@ -264,7 +265,7 @@ public class OpendaylightSdniQosMsgServiceImpl implements OpendaylightSdniQosMsg
 
 			NetworkInterface n = (NetworkInterface) e.nextElement();
 
-			Enumeration ee = n.getInetAddresses();
+			Enumeration ee = n.getInetAddresses();//Convenience method to return an Enumeration with all or a subset of the InetAddresses bound to this network interface.
 			while (ee.hasMoreElements()) {
 				InetAddress i = (InetAddress) ee.nextElement();
 				logger.debug("Trying address {}", i);
@@ -288,13 +289,13 @@ public class OpendaylightSdniQosMsgServiceImpl implements OpendaylightSdniQosMsg
 		List<Controllers> controllers = new ArrayList<Controllers>();
 
 		try {
-			SdniDataBase sdb = SdniDataBase.getInstance();
+			SdniDataBase sdb = SdniDataBase.getInstance();//数据库
 
-			Map<String,Map<String,Map<String, PortStatistics>>> qosData = sdb.getAllQoSPeerData();
+			Map<String,Map<String,Map<String, PortStatistics>>> qosData = sdb.getAllQoSPeerData();// controllers:
 			if ( qosData != null && !qosData.isEmpty() )
 			{
 				//get controller info
-				Set<String> controllersList = qosData.keySet();
+				Set<String> controllersList = qosData.keySet();//controllersList 是peer controller的集合
 				if ( controllersList != null && !controllersList.isEmpty() )
 				{
 					logger.info("In getAllPeerNodeConnectorsStatistics controllersList : {}", controllersList.size());
@@ -304,13 +305,13 @@ public class OpendaylightSdniQosMsgServiceImpl implements OpendaylightSdniQosMsg
 						ControllersBuilder crtlBuilder = new ControllersBuilder();
 						//Get node info
 						List<NodeList> nodeList = new ArrayList<NodeList>();
-						Map<String,Map<String, PortStatistics>> nodeData = qosData.get(controllerIp);
+						Map<String,Map<String, PortStatistics>> nodeData = qosData.get(controllerIp);//对应控制器下的节点的集合
 
 						if ( nodeData != null && !nodeData.isEmpty() )
 						{
 							logger.info("In getAllPeerNodeConnectorsStatistics nodeData : {}", nodeData.size());
 
-							Set<String> nodeNames = nodeData.keySet();
+							Set<String> nodeNames = nodeData.keySet();//节点名
 							if ( nodeNames != null && !nodeNames.isEmpty() )
 							{
 
@@ -320,21 +321,23 @@ public class OpendaylightSdniQosMsgServiceImpl implements OpendaylightSdniQosMsg
 
 									//Get nodeconnectors(ports) info
 									List<PortList> ports = new ArrayList<PortList>();
-									Map<String, PortStatistics> ncList = nodeData.get(nodeName);
+									Map<String, PortStatistics> ncList = nodeData.get(nodeName);//节点对应的nc 网卡的字典
 									if ( ncList != null && !ncList.isEmpty() )
 									{
 										logger.info("In getAllPeerNodeConnectorsStatistics nodeConnectorList : {}", ncList.size());
-										Set<String> portsList = ncList.keySet();
+										Set<String> portsList = ncList.keySet();//端口集合
 										if ( portsList != null && !portsList.isEmpty() )
 										{
 											for ( String port : portsList )
 											{
-												PortStatistics portStatistics = ncList.get(port);
+												PortStatistics portStatistics = ncList.get(port);//portStatistics存储着端口的所有信息
 
 												PortListBuilder portListBuilder = new PortListBuilder();
 
 												List<PortParams> portparams = new ArrayList<PortParams>();
 												PortParamsBuilder portparamsBuilder = new PortParamsBuilder();
+
+												//下面的步骤是将portStatistics的信息放入到portparamsBuilder中去
 
 												portparamsBuilder.setCollisionCount(new BigInteger(portStatistics.getCollisionCount()));
 												portparamsBuilder.setReceiveCrcError(new BigInteger(portStatistics.getReceiveCrcError()));
@@ -363,15 +366,16 @@ public class OpendaylightSdniQosMsgServiceImpl implements OpendaylightSdniQosMsg
 						crtlBuilder.setControllerIp(controllerIp);
 						crtlBuilder.setNodeList(nodeList);
 
-						controllers.add(crtlBuilder.build());
+						controllers.add(crtlBuilder.build());//逐次添加信息，层层嵌套
 
 
 						if ( !sdnControllers.contains(controllerIp) ) {
-							sdnControllers.add(controllerIp);
+							sdnControllers.add(controllerIp);//若sdnControllers中不存在此ip的controller则添加进去
 						}
 						
 					}
 				}
+				//若要修改Qos信息，只需要关注上面的内容即可
 
 			}
 		} catch (Exception e) {
@@ -380,6 +384,7 @@ public class OpendaylightSdniQosMsgServiceImpl implements OpendaylightSdniQosMsg
 		}
 
 		outputBuilder.setControllers(controllers);
+		//下面部分的内容同函数getAllNodeConnectorsStatistics()
 
 
 
