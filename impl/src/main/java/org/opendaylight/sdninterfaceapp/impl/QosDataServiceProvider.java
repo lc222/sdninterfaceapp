@@ -6,7 +6,7 @@
  * and is available at http://www.eclipse.org/legal/epl-v10.html
  */
 
-package org.opendaylight.sdninterfaceapp.impl;
+package org.opendaylight.sdninterfaceapp.impl;//包含在包impl中
 
 import org.opendaylight.controller.md.sal.binding.api.DataBroker;
 import org.opendaylight.controller.sal.binding.api.BindingAwareBroker.ProviderContext;
@@ -28,7 +28,7 @@ public class QosDataServiceProvider implements BindingAwareProvider, AutoCloseab
     }
 
     @Override
-    public void onSessionInitiated(ProviderContext session) {
+    public void onSessionInitiated(ProviderContext session) {//进行provider初始化设置， 数据库, databroker 和 唯一的OpendaylightSdniQosMsgServiceImpl对象
         logger.info("Provider Session initialized");
         final OpendaylightSdniQosMsgServiceImpl opendaylightSdniQosMsgService = OpendaylightSdniQosMsgServiceImpl.getInstance();
         opendaylightSdniQosMsgService.setDataBroker(dataBroker);
@@ -38,7 +38,7 @@ public class QosDataServiceProvider implements BindingAwareProvider, AutoCloseab
     }
 
     @Override
-    public void close() throws Exception {
+    public void close() throws Exception {//关闭Qos 的数据服务provider
         logger.info("QosDataService Closed");
         if (qosDataServiceRpcReg != null) {
             qosDataServiceRpcReg.close();

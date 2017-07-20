@@ -361,13 +361,13 @@ public class SdniMsgSynchronizer implements OpendaylightSdniWrapperService
         return insertQuery;
     }
 
-    public void getSDNIQoSMessage(StringBuffer sdniMsg) {
+    public void getSDNIQoSMessage(StringBuffer sdniMsg) { //read
         String controller = null;
-        final List<NetworkCapabilitiesQOS> list_QoS = new ArrayList();
+        final List<NetworkCapabilitiesQOS> list_QoS = new ArrayList(); //NetworkCapabilitiesQOS为一种数据类型。
         boolean flag = false;
         try {
 
-            OpendaylightSdniQosMsgService sdniQoSData = OpendaylightSdniQosMsgServiceImpl.getInstance();
+            OpendaylightSdniQosMsgService sdniQoSData = OpendaylightSdniQosMsgServiceImpl.getInstance(); //获取对象
             LOG.info("SdniWrapper  - getSDNIQoSMessage -got Qos rpc : {}" , sdniQoSData);
 
             Future<RpcResult<org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.sdninterfaceapp.qos.msg.rev151006.GetAllNodeConnectorsStatisticsOutput>> allNodeConnectorStats = sdniQoSData
@@ -386,13 +386,13 @@ public class SdniMsgSynchronizer implements OpendaylightSdniWrapperService
             if ( ndList != null && !ndList.isEmpty() )
             {
                 for (NodeList nList : ndList) {
-                    String nodeID = nList.getNodeId();
-                    List<PortList> portlist = nList
+                    String nodeID = nList.getNodeId();  //节点ID
+                    List<PortList> portlist = nList //节点端口列表
                             .getPortList();
                     if ( portlist!= null && !portlist.isEmpty())
                     {
 
-                        for (PortList Plist : portlist) {
+                        for (PortList Plist : portlist) {//端口信息
                             String portID = Plist.getPortId();
                             List<PortParams> Pparamslist = Plist
                                     .getPortParams();
@@ -405,7 +405,7 @@ public class SdniMsgSynchronizer implements OpendaylightSdniWrapperService
                                 PortParams Pparams = Pparamslist.get(0);
                                 NetworkCapabilitiesQOS ncQoS = new NetworkCapabilitiesQOS();
 
-                                ncQoS.setController(controller);
+                                ncQoS.setController(controller);//controller ip ?
                                 ncQoS.setNode(nodeID);
                                 ncQoS.setPort(portID);
                                 ncQoS.setReceiveCrcError(Pparams.getReceiveCrcError().toString());
@@ -415,7 +415,7 @@ public class SdniMsgSynchronizer implements OpendaylightSdniWrapperService
                                 ncQoS.setTransmitPackets(Pparams.getPackets().getTransmitted().toString());
                                 ncQoS.setReceivePackets(Pparams.getPackets().getReceived().toString());
                                 ncQoS.setBridgePort(Pparams.getPortName());
-                                list_QoS.add(ncQoS);
+                                list_QoS.add(ncQoS);//get Qos params and cp them into NetworkCapabilitiesQOS.
 
                                 if(!flag) {
                                 	sdniMsg.append(ncQoS.toString());
@@ -440,7 +440,7 @@ public class SdniMsgSynchronizer implements OpendaylightSdniWrapperService
             LOG.info("Sdniwrapper : getSDNIQoSMessage : DB updated successfully");
 
             sdniMsg.append("]}};");
-            LOG.info("Sdniwrapper : getSDNIQoSMessage : MESSAGE : {}" , sdniMsg.toString());
+            LOG.info("Sdniwrapper : getSDNIQoSMessage : MESSAGE : {}" , sdniMsg.toString());//向LOG输出发送显示信息(可能是终端也可能是通过服务器向网页显示)。
         } catch (InterruptedException | ExecutionException e) {
 
             LOG.error("Exception : {0}",e.getMessage());
@@ -518,7 +518,7 @@ public class SdniMsgSynchronizer implements OpendaylightSdniWrapperService
         updatePeerQOSTable(list_QoS, controller);
     }
 
-    private void updateControllerQOSTable(List<NetworkCapabilitiesQOS> list, String controller) {
+    private void updateControllerQOSTable(List<NetworkCapabilitiesQOS> list, String controller) { //更新数据库中有关Qos的信息
 
         Connection conn = null;
         Statement stmt = null;

@@ -15,7 +15,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 
 @XmlRootElement
 @XmlAccessorType(XmlAccessType.NONE)
-public class NetworkCapabilitiesQOS {
+public class NetworkCapabilitiesQOS { //定义Qos中包含的数据，并设置，相当于一种自定义的数据结构。
 
     @XmlElement
     private String receivePackets;
