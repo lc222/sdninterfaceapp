@@ -27,7 +27,8 @@ public class SdniwrapperServiceProvider implements BindingAwareProvider, AutoClo
     public SdniwrapperServiceProvider(final NotificationProviderService notificationProvider) {
         this.notificationProvider = notificationProvider;
     }
-
+    // session初始化，函數的入口
+    // TODO: 爲什麼沒有blurprint配置文件？
     @Override
     public void onSessionInitiated(ProviderContext session) {
         logger.info("Provider Session initialized");
@@ -36,9 +37,10 @@ public class SdniwrapperServiceProvider implements BindingAwareProvider, AutoClo
         
         
 		SdniMsgSynchronizer.getInstance().setNotificationService(notificationProvider);
+		//timer-2
 		Timer serverTimer=new Timer();
 		serverTimer.schedule(SDNiServerListener.getInstance(), 0,1000*60);
-		
+		//timer-4
 		Timer clientTimer=new Timer();
 		clientTimer.schedule(SDNiClientCommunicator.getInstance(), 1000*20,1000*60);
     }

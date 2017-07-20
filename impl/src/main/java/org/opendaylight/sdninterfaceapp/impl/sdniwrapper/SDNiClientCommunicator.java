@@ -40,6 +40,10 @@ public class SDNiClientCommunicator extends TimerTask{
 
 
 	
+	/**
+	 * 与其他controller进行交互的函数
+	 * 首先得到
+	 */
 	public static void sendMsg() {
 		log.info("Starting sendMsg.........!");
 		StringBuffer sdniMsg = new StringBuffer();

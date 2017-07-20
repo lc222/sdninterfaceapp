@@ -50,6 +50,11 @@ import org.slf4j.LoggerFactory;
 import com.google.common.util.concurrent.Futures;
 
 
+/**
+ * @author irvingzhang
+ * 继承自SdniWrapperService
+ */
+
 public class SdniMsgSynchronizer implements OpendaylightSdniWrapperService
 {
 
@@ -63,16 +68,23 @@ public class SdniMsgSynchronizer implements OpendaylightSdniWrapperService
     private SdniDataBase sdniDataBase;
     
     private static CopyOnWriteArrayList<String> peerControllers = new CopyOnWriteArrayList<String>();
-
     {
+    	// 定時執行，第二個参数含义是五分钟后执行，第三个参数含义是第一次执行完以后每隔一分钟重复执行一次
         Timer timer=new Timer();
         timer.schedule(new CleanupDB(), 1000*60*5,1000*60*1);
     }
 
+    /**
+     * 创建SdniDataBase实例，用于sdni 的 msg 同步
+     */
     private SdniMsgSynchronizer() {
     	sdniDataBase = SdniDataBase.getInstance();
     }
 
+    /**
+     * 创建SdniMsgSynchronizer实例
+     * @return 实例
+     */
     public static SdniMsgSynchronizer getInstance(){
         if ( serviceObj == null )
         {
@@ -86,14 +98,20 @@ public class SdniMsgSynchronizer implements OpendaylightSdniWrapperService
     {
     	notificationProvider = notificationProviderService;
     }
-
+   
+    /**
+     * SDNI得到拓扑信息，同时更新本地controller的拓扑
+     * @param sdniMsg 
+     */
     public void getSDNITopoMessage(StringBuffer sdniMsg) {
         LOG.info("SdniWrapper  - getSDNITopoMessage -Start");
         List<String> linkList = new ArrayList<String>();
 
         NetworkCapabilities nCap = new NetworkCapabilities();
         try {
-
+        	// 层层解析，最后得到network对象，得到所有控制节点的拓扑信息
+        	// sdniTopoData.getTopology()->finalobject.get()-> rpcobject.getResult()
+        	// ->outputobject.getNetworkTopology()->network
             OpendaylightSdniTopologyMsgService sdniTopoData = SdniTopologyMsgServiceImpl.getInstance();
             LOG.info("SdniWrapper  - getSDNITopoMessage -got topo rpc : {}" , sdniTopoData);
             Future<RpcResult<org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.sdninterfaceapp.topology.msg.rev151006.GetTopologyOutput>> finalobject = sdniTopoData
@@ -151,6 +169,7 @@ public class SdniMsgSynchronizer implements OpendaylightSdniWrapperService
 
 
             LOG.info("SdniWrapper  - getSDNITopoMessage " + "CONTROLLER : " + network.getControllerIp() + "Updating DB");
+            // 更新本地controller的拓扑
             updateControllerTopoTable(nCap);
             LOG.info("SdniWrapper  - getSDNITopoMessage " + "CONTROLLER : " + network.getControllerIp() + "DB updated Successfully");
 
@@ -164,7 +183,11 @@ public class SdniMsgSynchronizer implements OpendaylightSdniWrapperService
         }
         LOG.info("SdniWrapper  - getSDNITopoMessage -END");
     }
-
+    
+    /**
+     * 解析上述函数得到的SDNITopo的信息，同时更新peers的controller拓扑
+     * @param sdnimsg
+     */
     public void parseSDNITopoMessage(String sdnimsg) {
     	LOG.info("In parseSDNITopoMessage : {}" , sdnimsg);
 
@@ -206,12 +229,16 @@ public class SdniMsgSynchronizer implements OpendaylightSdniWrapperService
         } catch (Exception e) {
             LOG.error("Exception: {0}", e);
         }
-
+        // 更新peers的controller的拓扑
         updatePeerTopoTable(network);
         LOG.info("Sdniwrapper : parseSDNIMessage (sdni msg)- END");
 
     }
 
+    /**
+     * 更新本地controller的拓扑信息。 只有新建没有insert。
+     * @param networkData
+     */
     public void updateControllerTopoTable(NetworkCapabilities networkData) {
         LOG.info("Sdniwrapper : updateControllerTopoTable- Start");
 
@@ -226,7 +253,8 @@ public class SdniMsgSynchronizer implements OpendaylightSdniWrapperService
         }
         
         try {
-
+        	//networkData的原格式10.117.6.17
+        	//使用_代替.
             controllerIp = networkData.getController().replace('.', '_');
             conn = sdniDataBase.getConnection();
 
@@ -244,7 +272,8 @@ public class SdniMsgSynchronizer implements OpendaylightSdniWrapperService
             String sql = "create table IF NOT EXISTS TOPOLOGY_DATABASE_" + controllerIp + " (controller TEXT NOT NULL, links TEXT NOT NULL);";
             LOG.info("TOPO: SQL query to create controller table: {}", sql);
             stmt.executeUpdate(sql);
-
+            
+            //aliveControllersList为一个全局set变量，利用set特性统计有效的controller的个数
             aliveControllersList.add("TOPOLOGY_DATABASE_" + controllerIp);
 
             String insertQueries = formTopoInsertQuery(networkData, false);
@@ -267,8 +296,11 @@ public class SdniMsgSynchronizer implements OpendaylightSdniWrapperService
         }
         LOG.info("Sdniwrapper : updateControllerTopoTable- End");
     }
-
-
+     
+    /**
+     * 同上面函数一样。不同的是，该函数更新的是peers的拓扑信息表。
+     * @param networkData
+     */
     public void updatePeerTopoTable(NetworkCapabilities networkData) {
     	LOG.info("Sdniwrapper : updatePeerTopoTable- Start");
 
@@ -339,6 +371,13 @@ public class SdniMsgSynchronizer implements OpendaylightSdniWrapperService
     	LOG.info("Sdniwrapper : updatePeerTopoTable- End");
     }
 
+    
+    /**
+     * 从networkData数据结构中，得到sql的查询语句
+     * @param networkData
+     * @param isPeer 判断是本地的还是peers的controller，两者查询和语句不同
+     * @return
+     */
     public String formTopoInsertQuery(NetworkCapabilities networkData, boolean isPeer) {
         LOG.info("QoS: Inside formTopoInsertQuery peer {}", isPeer);
         String insertQuery = "";
@@ -361,6 +400,10 @@ public class SdniMsgSynchronizer implements OpendaylightSdniWrapperService
         return insertQuery;
     }
 
+    /**
+     * 基本结构类似于getSDNITopoMessage函数
+     * @param sdniMsg
+     */
     public void getSDNIQoSMessage(StringBuffer sdniMsg) {
         String controller = null;
         final List<NetworkCapabilitiesQOS> list_QoS = new ArrayList();
@@ -449,8 +492,11 @@ public class SdniMsgSynchronizer implements OpendaylightSdniWrapperService
             LOG.info(e.getMessage());
         }
     }
-
-
+    
+    /**
+     * 基本结构类似于parseSDNITopoMessage函数
+     * @param sdniQOSMsg
+     */
     public void parseSDNIQoSMessage(String sdniQOSMsg) {
     	LOG.info("In parseSDNIQoSMessage : {}" , sdniQOSMsg);
         final List<NetworkCapabilitiesQOS> list_QoS = new ArrayList<NetworkCapabilitiesQOS>();
@@ -651,6 +697,13 @@ public class SdniMsgSynchronizer implements OpendaylightSdniWrapperService
         }
     }
 
+    
+    /**
+     * 基本结构类似于formTopoInsertQuery函数
+     * @param list
+     * @param isPeer
+     * @return
+     */
     public String formQOSInsertQuery(List<NetworkCapabilitiesQOS> list, boolean isPeer) {
         String insertQuery = "";
 
@@ -677,13 +730,13 @@ public class SdniMsgSynchronizer implements OpendaylightSdniWrapperService
                 }
             } else {
                 if (!isPeer) {
-                    insertQuery += "insert into QOS_DATABASE_" + controller + " values (\"" + controllerIP + "\",\""
+                    insertQuery += "insert into DEMO2_QOS_DATABASE_" + controller + " values (\"" + controllerIP + "\",\""
                             + node + "\",\""
                             + port + "\",\"" + receiveFrameError + "\",\""
                             + receiveOverRunError + "\",\"" + receiveCrcError + "\",\"" + collisionCount + "\",\"" + receivePackets
                             + "\",\"" + transmitPackets + "\",\"" + bridgePort + "\"); -- ";
                 } else {
-                    insertQuery += "insert into QOS_DATABASE_PEER_" + controller + " values (\"" + controllerIP + "\",\""
+                    insertQuery += "insert into DEMO2_QOS_DATABASE_PEER_" + controller + " values (\"" + controllerIP + "\",\""
                             + node + "\",\""
                             + port + "\",\"" + receiveFrameError + "\",\""
                             + receiveOverRunError + "\",\"" + receiveCrcError + "\",\"" + collisionCount + "\",\"" + receivePackets
@@ -695,12 +748,21 @@ public class SdniMsgSynchronizer implements OpendaylightSdniWrapperService
         LOG.info("QoS: At the end of formQOSInsertQuery() method insertQuery:{}", insertQuery);
         return insertQuery;
     }
-
+  
+    /**
+     * 在updateControllerTopoTable函数中有AliveController的设置
+     * @return
+     */
     public Set<String> getAliveControllers()
     {
         return aliveControllersList;
     }
     
+    /**
+     * 传入一个controllerip，通过判断是否在trustedcontroller的list中判断是否为信任controller
+     * @param controllerIp
+     * @return
+     */
     private boolean isControllerTrusted(String controllerIp)
     {
         if ( controllerIp == null )
@@ -714,6 +776,10 @@ public class SdniMsgSynchronizer implements OpendaylightSdniWrapperService
         
     }
     
+    /**
+     * 在数据库中进行查询，得到trustcontroller列表
+     * @return
+     */
     private List<String> getTrustedControllers()
     {
     	Connection conn = null;
@@ -784,9 +850,10 @@ public class SdniMsgSynchronizer implements OpendaylightSdniWrapperService
         return Futures.immediateFuture(rpcResultBuilder.build());
 	}
 
-	
-	
-
+	/* (non-Javadoc)
+	 * 通过全局变量peercontrollers来记录peers的控制器的情况
+	 * @see org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.sdninterfaceapp.sdniwrapper.msg.rev170327.OpendaylightSdniWrapperService#addPeerControllers(org.opendaylight.yang.gen.v1.urn.opendaylight.params.xml.ns.yang.sdninterfaceapp.sdniwrapper.msg.rev170327.AddPeerControllersInput)
+	 */
 	@Override
 	public Future<RpcResult<Void>> addPeerControllers(AddPeerControllersInput input) {
 
@@ -798,19 +865,15 @@ public class SdniMsgSynchronizer implements OpendaylightSdniWrapperService
     	return buildResultFuture(true);
 	}
 
+	/**
+	 * 返回peerscontrollers
+	 * @return
+	 */
 	public List<String> getPeerControllers()
 	{
 		LOG.info("In getPeerControllers : {}", peerControllers);
 		return peerControllers;
 	}
-/*   @Override
-   public void onUntrustedController(UntrustedController notification) {
-       LOG.info("notification subscription started");
-       LOG.info( "untrusted controller notification - controllerIp: {} ", notification.getControllerip() );
-       LOG.info("notification subscription ended");
-
-   }
-*/
 
 	@Override
 	public Future<RpcResult<Void>> removePeerControllers(RemovePeerControllersInput input) {
